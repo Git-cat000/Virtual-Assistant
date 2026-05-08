@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "provider": "custom-http",
+  "endpoint": "http://localhost:3001/tts",
+  "voice": "default",
+  "speed": 1
+}

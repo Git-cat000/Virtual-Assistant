@@ -1,0 +1,8 @@
+import { nativeImage } from "electron";
+
+const appIconDataUrl =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABnUlEQVR4nO3WzW3CQBCGYbrgSg/0QG+cUlikHINSQcog8iFoE7Fmfr6Zbwwz0ko5rGy/T4zt3a6np6enBzvXz+9rxHHfvj5CjguZJXq2PMddomcLd/WOWQv3QKyFl4HQxGsQNPE0BEu8BMEST0F4aQBP/BqCJz4VAQlwvrzf/t4EgCV2ibSucghZ4R4IKgAy2opBA8iIlyCkA2SGSyBKxu8PR1WYZj8NQRIxW4j9M4Sw+BHAE38vSrt/DSEcABE/Rmn3P0IIBZD+flkA5+HLkgIwXuw4kjjpfhqA5r9/b6Txj/bT7oKXBpCctBIAHMHy8It6BqTfBVJx7RPdujTX0wAN0AC5AFoEy/4GyATQnlCD4Nm/eQTE/rI/gVlc5P7yAKzVAA3QAJhhh1DjPQDWV1mZV6AXQftOR30DwOORANovwTIAEQgRn79h8VYAC4TnPKEAXoSI2z01HoXwHwJxvLR4JAJqpcdXQqDFV0Bgt/8ZS8D+cDxtPvx3lpisxW5NjS2Fwo6kQrDDGoEdXx0iJbwKCrsVNk8V09OzvfkBdtjN6WUUjwgAAAAASUVORK5CYII=";
+
+export function createAppIcon() {
+  return nativeImage.createFromDataURL(appIconDataUrl);
+}

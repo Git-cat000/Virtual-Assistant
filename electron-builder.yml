@@ -1,0 +1,29 @@
+appId: com.virtual-assistant.desktop
+productName: Virtual Assistant
+copyright: Copyright (c) 2026 Virtual Assistant
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+  - config/**
+  - "!**/*.map"
+asar: true
+win:
+  signAndEditExecutable: false
+  forceCodeSigning: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: "${productName}-${version}-portable.${ext}"

@@ -1,0 +1,7 @@
+{
+  "clipboard": {
+    "enabled": false,
+    "pollMs": 1200,
+    "maxPreviewLength": 160
+  }
+}

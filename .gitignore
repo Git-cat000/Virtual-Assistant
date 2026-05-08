@@ -1,0 +1,11 @@
+node_modules/
+out/
+.runtime/
+dist/
+release/
+*.log
+*.local
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
