@@ -1,4 +1,5 @@
 export type AgentUiState = "idle" | "thinking" | "working" | "alert" | "error";
+export type PetAnimationName = AgentUiState | "hover";
 
 export type AgentUiEvent =
   | { type: "state"; state: AgentUiState; message?: string }
@@ -34,7 +35,9 @@ export type PetAsset = {
   columns?: number;
   rows?: number;
   fps?: number;
-  animations?: Partial<Record<AgentUiState, number[]>>;
+  displayScale?: number;
+  frameMs?: Partial<Record<PetAnimationName, number>>;
+  animations?: Partial<Record<PetAnimationName, number[]>>;
 };
 
 export type AssistantConfig = {

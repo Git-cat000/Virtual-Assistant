@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld("virtualAssistant", {
   choosePetFolder: () => ipcRenderer.invoke("settings:choose-pet-folder") as Promise<EditableAppSettings["pet"] | null>,
   getPetRuntimeConfig: () => ipcRenderer.invoke("settings:get-pet-runtime") as Promise<PetRuntimeConfig>,
   getAssistantConfig: () => ipcRenderer.invoke("settings:get-assistant") as Promise<AssistantConfig>,
+  closeSettingsWindow: () => {
+    ipcRenderer.send("settings-window:close");
+  },
   acceptClipboardSuggestion: (id: string) => ipcRenderer.invoke("clipboard:accept-suggestion", id),
   onSettingsUpdated: (callback: (settings: EditableAppSettings) => void) => {
     const listener = (_: unknown, settings: EditableAppSettings) => callback(settings);

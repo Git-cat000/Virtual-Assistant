@@ -3,8 +3,17 @@
   "workspace": ".",
   "claudeCode": {
     "permissionMode": "default",
-    "allowedTools": ["Read", "Glob", "Grep", "LS"],
-    "disallowedTools": ["Bash(rm *)", "Bash(del *)", "Bash(rmdir *)"],
+    "allowedTools": [
+      "Read",
+      "Glob",
+      "Grep",
+      "LS"
+    ],
+    "disallowedTools": [
+      "Bash(rm *)",
+      "Bash(del *)",
+      "Bash(rmdir *)"
+    ],
     "permissionTimeoutMs": 60000
   }
 }

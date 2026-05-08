@@ -1,6 +1,7 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, screen, Tray } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, net, protocol, screen, Tray, type IpcMainInvokeEvent } from "electron";
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, normalize, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import Store from "electron-store";
 import { createAppIcon } from "./appIcon";
 import { ClipboardWatcher } from "./clipboardWatcher";
@@ -21,6 +22,7 @@ type AppSettings = {
 
 let petWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let settingsWindow: BrowserWindow | null = null;
 let bridge: AgentBridge | null = null;
 let clipboardWatcher: ClipboardWatcher | null = null;
 let settingsManager: SettingsManager;
@@ -33,6 +35,18 @@ const store = new Store<AppSettings>();
 const appIcon = createAppIcon();
 let agentConfig: ReturnType<SettingsManager["loadAgentConfig"]>;
 let featureConfig: ReturnType<SettingsManager["loadFeatureConfig"]>;
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "va-asset",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true
+    }
+  }
+]);
 
 function configureAppStorage() {
   const root = app.isPackaged
@@ -62,8 +76,7 @@ function createTray(win: BrowserWindow) {
       {
         label: "设置",
         click: () => {
-          win.showInactive();
-          win.webContents.send("ui:toggle-settings");
+          void openSettingsWindow();
         }
       },
       {
@@ -138,7 +151,7 @@ function registerIpc(win: BrowserWindow) {
   ipcMain.handle("settings:save", (_, settings: EditableAppSettings) => {
     const saved = settingsManager.saveSettings(settings);
     applyRuntimeSettings(win);
-    win.webContents.send("settings:updated", saved);
+    broadcastSettingsUpdated(saved);
     win.webContents.send("agent:event", {
       type: "result",
       message: "设置已保存，运行时配置已刷新。"
@@ -146,13 +159,15 @@ function registerIpc(win: BrowserWindow) {
     return saved;
   });
 
-  ipcMain.handle("settings:choose-workspace", () => settingsManager.chooseWorkspace(win));
+  ipcMain.handle("settings:choose-workspace", (event: IpcMainInvokeEvent) =>
+    settingsManager.chooseWorkspace(BrowserWindow.fromWebContents(event.sender) ?? win)
+  );
 
-  ipcMain.handle("settings:choose-pet-folder", async () => {
-    const pet = await settingsManager.choosePetFolder(win);
+  ipcMain.handle("settings:choose-pet-folder", async (event: IpcMainInvokeEvent) => {
+    const pet = await settingsManager.choosePetFolder(BrowserWindow.fromWebContents(event.sender) ?? win);
     if (pet) {
       const saved = settingsManager.getSettings();
-      win.webContents.send("settings:updated", saved);
+      broadcastSettingsUpdated(saved);
     }
     return pet;
   });
@@ -160,6 +175,10 @@ function registerIpc(win: BrowserWindow) {
   ipcMain.handle("settings:get-pet-runtime", () => settingsManager.loadPetRuntimeConfig());
 
   ipcMain.handle("settings:get-assistant", () => settingsManager.loadAssistantConfig());
+
+  ipcMain.on("settings-window:close", (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
 
   ipcMain.handle("clipboard:accept-suggestion", (_, id: string) => {
     const content = clipboardWatcher?.consume(id);
@@ -170,6 +189,7 @@ function registerIpc(win: BrowserWindow) {
 
 async function initializeApp() {
   settingsManager = new SettingsManager();
+  registerAssetProtocol();
   agentConfig = settingsManager.loadAgentConfig();
   featureConfig = settingsManager.loadFeatureConfig();
   petWindow = createPetWindow(store, appIcon);
@@ -207,6 +227,71 @@ function applyRuntimeSettings(win: BrowserWindow) {
   bridge = createAgentBridge(win);
   clipboardWatcher = new ClipboardWatcher(win, featureConfig.clipboard);
   clipboardWatcher.start();
+}
+
+async function openSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 860,
+    height: 720,
+    minWidth: 720,
+    minHeight: 560,
+    title: "Virtual Assistant 设置",
+    icon: appIcon,
+    show: false,
+    resizable: true,
+    backgroundColor: "#f6f8fb",
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false
+    }
+  });
+
+  settingsWindow.setMenu(null);
+  settingsWindow.once("ready-to-show", () => settingsWindow?.show());
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
+  });
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    await settingsWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}?view=settings`);
+  } else {
+    await settingsWindow.loadFile(joinRendererIndex(), { query: { view: "settings" } });
+  }
+}
+
+function registerAssetProtocol() {
+  protocol.handle("va-asset", (request) => {
+    const url = new URL(request.url);
+    if (url.hostname !== "public") {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const publicDir = settingsManager.getPublicDir();
+    const relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    const target = resolve(publicDir, normalize(relativePath));
+
+    if (!normalize(target).startsWith(normalize(publicDir))) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    return net.fetch(pathToFileURL(target).toString());
+  });
+}
+
+function broadcastSettingsUpdated(settings: EditableAppSettings) {
+  for (const win of [petWindow, settingsWindow]) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("settings:updated", settings);
+    }
+  }
 }
 
 function createAgentBridge(win: BrowserWindow): AgentBridge {

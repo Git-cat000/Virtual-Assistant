@@ -16,9 +16,9 @@ export function createPetWindow(store?: WindowStore, icon?: NativeImage): Browse
   const savedPosition = store?.get("windowPosition");
 
   const win = new BrowserWindow({
-    width: 340,
-    height: 430,
-    x: savedPosition?.x ?? width - 390,
+    width: 260,
+    height: 300,
+    x: savedPosition?.x ?? width - 310,
     y: savedPosition?.y ?? 80,
     title: "",
     icon,

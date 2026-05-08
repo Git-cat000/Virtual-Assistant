@@ -4,6 +4,7 @@ import type { AgentProvider, EditableAppSettings } from "../../../shared/types";
 type SettingsPanelProps = {
   visible: boolean;
   onClose: () => void;
+  standalone?: boolean;
 };
 
 type SettingsForm = EditableAppSettings & {
@@ -11,17 +12,17 @@ type SettingsForm = EditableAppSettings & {
   disallowedToolsText: string;
 };
 
-export function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ visible, onClose, standalone = false }: SettingsPanelProps) {
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
-    window.virtualAssistant.setMouseInteractive(true);
+    if (!standalone) window.virtualAssistant.setMouseInteractive(true);
     setStatus("");
     void window.virtualAssistant.getSettings().then((settings) => setForm(toForm(settings)));
-  }, [visible]);
+  }, [visible, standalone]);
 
   const canSave = useMemo(() => Boolean(form && !saving), [form, saving]);
 
@@ -77,10 +78,16 @@ export function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
       const pet = await window.virtualAssistant.choosePetFolder();
       if (!pet) return;
       setForm((current) => (current ? { ...current, pet } : current));
-      setStatus("桌宠已导入，保存后继续使用该配置。");
+      setStatus("桌宠已导入并应用。");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "导入桌宠失败。");
     }
+  };
+
+  const reload = async () => {
+    const settings = await window.virtualAssistant.getSettings();
+    setForm(toForm(settings));
+    setStatus("");
   };
 
   const save = async () => {
@@ -99,12 +106,19 @@ export function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
   };
 
   return (
-    <section className="side-panel settings-panel" onMouseEnter={() => window.virtualAssistant.setMouseInteractive(true)}>
+    <section
+      className={standalone ? "settings-page" : "side-panel settings-panel"}
+      onMouseEnter={() => {
+        if (!standalone) window.virtualAssistant.setMouseInteractive(true);
+      }}
+    >
       <header className="side-panel-header">
         <strong>设置</strong>
-        <button type="button" className="icon-button close" onClick={onClose} title="关闭">
-          x
-        </button>
+        {!standalone ? (
+          <button type="button" className="icon-button close" onClick={onClose} title="关闭">
+            x
+          </button>
+        ) : null}
       </header>
 
       {!form ? (
@@ -163,10 +177,7 @@ export function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
             </label>
             <label>
               权限模式
-              <select
-                value={form.agent.claudeCode.permissionMode}
-                onChange={(event) => updateClaude({ permissionMode: event.target.value })}
-              >
+              <select value={form.agent.claudeCode.permissionMode} onChange={(event) => updateClaude({ permissionMode: event.target.value })}>
                 <option value="default">default，需要确认危险操作</option>
                 <option value="acceptEdits">acceptEdits，自动接受编辑</option>
                 <option value="bypassPermissions">bypassPermissions，跳过权限确认</option>
@@ -225,14 +236,14 @@ export function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
           </fieldset>
 
           <footer className="settings-actions">
-            <button type="button" className="secondary-button" onClick={() => void window.virtualAssistant.getSettings().then((settings) => setForm(toForm(settings)))}>
+            {status ? <span className="settings-status">{status}</span> : <span />}
+            <button type="button" className="secondary-button" onClick={() => void reload()}>
               还原
             </button>
             <button type="button" className="primary-button" disabled={!canSave} onClick={save}>
               保存
             </button>
           </footer>
-          {status && <p className="panel-note">{status}</p>}
         </form>
       )}
     </section>

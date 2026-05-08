@@ -9,9 +9,32 @@ import { useAssistantConfig } from "./hooks/useAssistantConfig";
 import { usePetStore } from "./stores/petStore";
 
 export default function App() {
+  const view = new URLSearchParams(window.location.search).get("view");
+  return view === "settings" ? <SettingsWindowApp /> : <PetWindowApp />;
+}
+
+function SettingsWindowApp() {
+  useEffect(() => {
+    document.body.classList.add("settings-mode");
+    document.documentElement.classList.add("settings-mode");
+    return () => {
+      document.body.classList.remove("settings-mode");
+      document.documentElement.classList.remove("settings-mode");
+    };
+  }, []);
+
+  return (
+    <main className="settings-window-shell">
+      <SettingsPanel visible onClose={() => undefined} standalone />
+    </main>
+  );
+}
+
+function PetWindowApp() {
   const [chatVisible, setChatVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [petHovered, setPetHovered] = useState(false);
   const hideTimer = useRef<number | null>(null);
   const hoverZoneRef = useRef<HTMLDivElement>(null);
   const hasDraftRef = useRef(false);
@@ -68,6 +91,7 @@ export default function App() {
   }, [showClipboardSuggestion]);
 
   const showInput = () => {
+    setPetHovered(true);
     if (hideTimer.current) {
       window.clearTimeout(hideTimer.current);
       hideTimer.current = null;
@@ -100,6 +124,7 @@ export default function App() {
   };
 
   const scheduleHideInput = () => {
+    setPetHovered(false);
     if (hideTimer.current) {
       window.clearTimeout(hideTimer.current);
     }
@@ -124,7 +149,7 @@ export default function App() {
         <PetBubble />
         <div ref={hoverZoneRef} className="pet-hover-zone" onPointerEnter={showInput} onPointerLeave={scheduleHideInput}>
           <button className="pet-button" type="button" aria-label="desktop pet">
-            <PetCanvas />
+            <PetCanvas interaction={petHovered ? "hover" : undefined} />
           </button>
           <ChatPanel
             visible={chatVisible}

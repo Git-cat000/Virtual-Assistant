@@ -25,6 +25,7 @@ declare global {
       choosePetFolder: () => Promise<EditableAppSettings["pet"] | null>;
       getPetRuntimeConfig: () => Promise<PetRuntimeConfig>;
       getAssistantConfig: () => Promise<AssistantConfig>;
+      closeSettingsWindow: () => void;
       acceptClipboardSuggestion: (id: string) => Promise<void>;
       onSettingsUpdated: (callback: (settings: EditableAppSettings) => void) => () => void;
       onTaskHistoryUpdated: (callback: (items: TaskHistoryItem[]) => void) => () => void;
