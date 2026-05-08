@@ -83,7 +83,66 @@ function PetAssetView({
     return <LottieAsset src={asset.src} loop={shouldLoop} onAssetError={onAssetError} />;
   }
 
+  if (asset.kind === "spritesheet") {
+    return <SpriteSheetAsset asset={asset} state={state} loop={shouldLoop} onAssetError={onAssetError} />;
+  }
+
   return <img className="pet-custom-media" src={asset.src} alt="" draggable={false} onError={onAssetError} />;
+}
+
+function SpriteSheetAsset({
+  asset,
+  state,
+  loop,
+  onAssetError
+}: {
+  asset: NonNullable<ReturnType<typeof usePetManifest>>;
+  state: string;
+  loop: boolean;
+  onAssetError: () => void;
+}) {
+  const columns = asset.columns ?? 1;
+  const rows = asset.rows ?? 1;
+  const frames = asset.animations?.[state as keyof typeof asset.animations] ?? asset.animations?.idle ?? [0];
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  useEffect(() => {
+    setFrameIndex(0);
+  }, [asset.src, state]);
+
+  useEffect(() => {
+    if (frames.length <= 1) return;
+
+    const interval = window.setInterval(() => {
+      setFrameIndex((current) => {
+        const next = current + 1;
+        if (next < frames.length) return next;
+        return loop ? 0 : current;
+      });
+    }, 1000 / (asset.fps ?? 6));
+
+    return () => window.clearInterval(interval);
+  }, [asset.fps, frames, loop]);
+
+  const frame = frames[Math.min(frameIndex, frames.length - 1)] ?? 0;
+  const column = frame % columns;
+  const row = Math.floor(frame / columns);
+  const x = columns > 1 ? (column / (columns - 1)) * 100 : 0;
+  const y = rows > 1 ? (row / (rows - 1)) * 100 : 0;
+
+  return (
+    <div
+      className="pet-custom-spritesheet"
+      style={{
+        backgroundImage: `url("${asset.src}")`,
+        backgroundPosition: `${x}% ${y}%`,
+        backgroundSize: `${columns * 100}% ${rows * 100}%`
+      }}
+      role="img"
+      aria-label=""
+      onError={onAssetError}
+    />
+  );
 }
 
 function LottieAsset({ src, loop, onAssetError }: { src: string; loop: boolean; onAssetError: () => void }) {

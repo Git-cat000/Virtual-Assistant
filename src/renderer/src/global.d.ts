@@ -1,4 +1,13 @@
-import type { AgentUiEvent, AppRuntimeInfo, ClipboardSuggestion, TaskHistoryItem, WindowRect } from "../../shared/types";
+import type {
+  AgentUiEvent,
+  AppRuntimeInfo,
+  AssistantConfig,
+  ClipboardSuggestion,
+  EditableAppSettings,
+  PetRuntimeConfig,
+  TaskHistoryItem,
+  WindowRect
+} from "../../shared/types";
 
 declare global {
   interface Window {
@@ -10,7 +19,14 @@ declare global {
       isCursorInWindowRect: (rect: WindowRect) => Promise<boolean>;
       getTaskHistory: () => Promise<TaskHistoryItem[]>;
       getRuntimeInfo: () => Promise<AppRuntimeInfo>;
+      getSettings: () => Promise<EditableAppSettings>;
+      saveSettings: (settings: EditableAppSettings) => Promise<EditableAppSettings>;
+      chooseWorkspace: () => Promise<string | null>;
+      choosePetFolder: () => Promise<EditableAppSettings["pet"] | null>;
+      getPetRuntimeConfig: () => Promise<PetRuntimeConfig>;
+      getAssistantConfig: () => Promise<AssistantConfig>;
       acceptClipboardSuggestion: (id: string) => Promise<void>;
+      onSettingsUpdated: (callback: (settings: EditableAppSettings) => void) => () => void;
       onTaskHistoryUpdated: (callback: (items: TaskHistoryItem[]) => void) => () => void;
       onClipboardSuggestion: (callback: (suggestion: ClipboardSuggestion) => void) => () => void;
       onAgentEvent: (callback: (event: AgentUiEvent) => void) => () => void;

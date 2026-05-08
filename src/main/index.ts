@@ -2,16 +2,15 @@ import { app, BrowserWindow, globalShortcut, ipcMain, Menu, screen, Tray } from 
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import Store from "electron-store";
-import { loadAgentConfig } from "./agentConfig";
 import { createAppIcon } from "./appIcon";
 import { ClipboardWatcher } from "./clipboardWatcher";
 import type { AgentBridge } from "./agentBridge";
 import { ClaudeCodeBridge } from "./claudeCodeBridge";
-import { loadFeatureConfig } from "./featureConfig";
 import { createPetWindow } from "./window";
 import { MockAgentBridge } from "./mockAgentBridge";
+import { SettingsManager } from "./settingsManager";
 import { TaskHistory } from "./taskHistory";
-import type { AppRuntimeInfo, PermissionResponse, WindowRect } from "../shared/types";
+import type { AppRuntimeInfo, EditableAppSettings, PermissionResponse, WindowRect } from "../shared/types";
 
 type AppSettings = {
   windowPosition?: {
@@ -24,6 +23,7 @@ let petWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let bridge: AgentBridge | null = null;
 let clipboardWatcher: ClipboardWatcher | null = null;
+let settingsManager: SettingsManager;
 const taskHistory = new TaskHistory();
 
 app.disableHardwareAcceleration();
@@ -31,8 +31,8 @@ configureAppStorage();
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const store = new Store<AppSettings>();
 const appIcon = createAppIcon();
-const agentConfig = loadAgentConfig();
-const featureConfig = loadFeatureConfig();
+let agentConfig: ReturnType<SettingsManager["loadAgentConfig"]>;
+let featureConfig: ReturnType<SettingsManager["loadFeatureConfig"]>;
 
 function configureAppStorage() {
   const root = app.isPackaged
@@ -133,6 +133,34 @@ function registerIpc(win: BrowserWindow) {
     disallowedTools: agentConfig.claudeCode.disallowedTools
   }));
 
+  ipcMain.handle("settings:get", () => settingsManager.getSettings());
+
+  ipcMain.handle("settings:save", (_, settings: EditableAppSettings) => {
+    const saved = settingsManager.saveSettings(settings);
+    applyRuntimeSettings(win);
+    win.webContents.send("settings:updated", saved);
+    win.webContents.send("agent:event", {
+      type: "result",
+      message: "设置已保存，运行时配置已刷新。"
+    });
+    return saved;
+  });
+
+  ipcMain.handle("settings:choose-workspace", () => settingsManager.chooseWorkspace(win));
+
+  ipcMain.handle("settings:choose-pet-folder", async () => {
+    const pet = await settingsManager.choosePetFolder(win);
+    if (pet) {
+      const saved = settingsManager.getSettings();
+      win.webContents.send("settings:updated", saved);
+    }
+    return pet;
+  });
+
+  ipcMain.handle("settings:get-pet-runtime", () => settingsManager.loadPetRuntimeConfig());
+
+  ipcMain.handle("settings:get-assistant", () => settingsManager.loadAssistantConfig());
+
   ipcMain.handle("clipboard:accept-suggestion", (_, id: string) => {
     const content = clipboardWatcher?.consume(id);
     if (!content) return;
@@ -141,6 +169,9 @@ function registerIpc(win: BrowserWindow) {
 }
 
 async function initializeApp() {
+  settingsManager = new SettingsManager();
+  agentConfig = settingsManager.loadAgentConfig();
+  featureConfig = settingsManager.loadFeatureConfig();
   petWindow = createPetWindow(store, appIcon);
   taskHistory.attachWindow(petWindow);
   bridge = createAgentBridge(petWindow);
@@ -167,6 +198,15 @@ async function initializeApp() {
   } else {
     await petWindow.loadFile(joinRendererIndex());
   }
+}
+
+function applyRuntimeSettings(win: BrowserWindow) {
+  agentConfig = settingsManager.loadAgentConfig();
+  featureConfig = settingsManager.loadFeatureConfig();
+  clipboardWatcher?.stop();
+  bridge = createAgentBridge(win);
+  clipboardWatcher = new ClipboardWatcher(win, featureConfig.clipboard);
+  clipboardWatcher.start();
 }
 
 function createAgentBridge(win: BrowserWindow): AgentBridge {
