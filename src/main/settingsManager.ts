@@ -21,8 +21,6 @@ type CodexPetDefinition = {
 };
 
 const stateOrder: AgentUiState[] = ["idle", "thinking", "working", "alert", "error"];
-// Codex pet spritesheets use 256px source frames, but the desktop pet is shown smaller.
-// Change this value if you want a different global default display size.
 const defaultCodexFrameWidth = 256;
 const defaultCodexDisplayScale = 0.38;
 
@@ -52,7 +50,7 @@ const defaultAssistantConfig = {
 };
 
 const defaultPetManifest: PetManifestFile = {
-  name: "Default CSS fallback",
+  name: "Default Baymax Head",
   states: {}
 };
 
@@ -67,7 +65,7 @@ export class SettingsManager {
     this.petDir = join(this.publicDir, "pets", "current");
     mkdirSync(this.configDir, { recursive: true });
     mkdirSync(this.petDir, { recursive: true });
-    this.seedPackagedDefaults();
+    this.seedDefaults();
   }
 
   getPublicDir() {
@@ -171,20 +169,33 @@ export class SettingsManager {
     return normalizePetManifest(readJson<Partial<PetManifestFile>>(this.petManifestPath, defaultPetManifest));
   }
 
-  private seedPackagedDefaults() {
-    if (!app.isPackaged) return;
+  private seedDefaults() {
+    if (app.isPackaged) this.tryCopyPackagedDefaults();
 
+    if (!existsSync(this.petManifestPath)) writeJson(this.petManifestPath, defaultPetManifest);
+    if (!existsSync(this.assistantConfigPath)) writeJson(this.assistantConfigPath, defaultAssistantConfig);
+  }
+
+  private tryCopyPackagedDefaults() {
     const bundledPublicDir = join(process.resourcesPath, "app.asar", "out", "renderer");
     const bundledPetDir = join(bundledPublicDir, "pets", "current");
     const bundledAssistantConfig = join(bundledPublicDir, "assistant.config.json");
 
     if (!existsSync(this.petManifestPath) && existsSync(bundledPetDir)) {
-      cpSync(bundledPetDir, this.petDir, { recursive: true, force: true });
+      try {
+        cpSync(bundledPetDir, this.petDir, { recursive: true, force: true });
+      } catch {
+        // Some Windows installs cannot copy directories directly from app.asar.
+      }
     }
 
     if (!existsSync(this.assistantConfigPath) && existsSync(bundledAssistantConfig)) {
-      mkdirSync(dirname(this.assistantConfigPath), { recursive: true });
-      cpSync(bundledAssistantConfig, this.assistantConfigPath, { force: true });
+      try {
+        mkdirSync(dirname(this.assistantConfigPath), { recursive: true });
+        cpSync(bundledAssistantConfig, this.assistantConfigPath, { force: true });
+      } catch {
+        // Fall back to writing the embedded default config.
+      }
     }
   }
 

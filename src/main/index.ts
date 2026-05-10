@@ -270,15 +270,15 @@ async function openSettingsWindow() {
 function registerAssetProtocol() {
   protocol.handle("va-asset", (request) => {
     const url = new URL(request.url);
-    if (url.hostname !== "public") {
+    if (url.hostname !== "public" && url.hostname !== "file") {
       return new Response("Not found", { status: 404 });
     }
 
     const publicDir = settingsManager.getPublicDir();
-    const relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
-    const target = resolve(publicDir, normalize(relativePath));
+    const rawPath = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    const target = url.hostname === "public" ? resolve(publicDir, normalize(rawPath)) : resolve(normalize(rawPath));
 
-    if (!normalize(target).startsWith(normalize(publicDir))) {
+    if (url.hostname === "public" && !normalize(target).startsWith(normalize(publicDir))) {
       return new Response("Forbidden", { status: 403 });
     }
 

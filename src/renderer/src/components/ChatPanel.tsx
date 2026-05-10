@@ -26,11 +26,7 @@ export function ChatPanel({ visible, onDraftChange, onClose }: ChatPanelProps) {
   };
 
   return (
-    <form
-      className="chat-panel"
-      onSubmit={submit}
-      onMouseEnter={() => window.virtualAssistant.setMouseInteractive(true)}
-    >
+    <form className="chat-panel" onSubmit={submit} onMouseEnter={() => window.virtualAssistant.setMouseInteractive(true)}>
       <input
         autoFocus
         value={prompt}
